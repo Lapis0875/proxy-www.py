@@ -3,6 +3,11 @@ Python port of proxy-www (https://github.com/justjavac/proxy-www).
 Just purpose of practicing python metaclass and magic method overriding.
 I don't think this is practical... but it's fun :rofl:
 
+## How to install
+```shell
+pip install proxy-www
+```
+
 ## Example
 ```py
 from proxy_www import www, http, https
