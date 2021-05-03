@@ -21,7 +21,7 @@ setup(
     long_description_content_type='text/markdown',
     long_description=long_description,
     # Project url
-    url='https://github.com/Lapis0875/proxy_www.py',
+    url='https://github.com/Lapis0875/proxy-www.py',
     # Include module directory 'chronous'
     packages=find_packages(),
     # Dependencies : This project use module 'colorlog', so add requirements.
