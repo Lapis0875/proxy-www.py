@@ -79,7 +79,8 @@ class ClassProxyMeta(type):
         if item == '_asyncio_future_blocking':
             return super().__getattr__(item)
         logger.debug('Creating www proxy object for domain {}'.format(item))
-        instance = self(url='http://www.{}'.format(item))
+        url = 'http://www.{}'.format(item) if self.__name__ == 'www' else '{}://{}'.format(self.__name__, item)
+        instance = self(url)
         return instance
 
     def __repr__(self) -> str:
@@ -149,11 +150,13 @@ async def test():
         print('Is secure? :', req.is_secure)
         print(await req)
 
-    def div_test():
+    async def div_test():
         http_member_req = http.www.github.com
         print(http_member_req)
+        print(await http_member_req)
         div_path_req = www.github.com/'profile'
         print(div_path_req)
+        print(await div_path_req)
 
     def sync_test():
         print('sync call')
@@ -164,7 +167,7 @@ async def test():
         resp = await https.github.com
         print(resp)
 
-    sync_test()
+    await div_test()
 
 
 if __name__ == '__main__':
