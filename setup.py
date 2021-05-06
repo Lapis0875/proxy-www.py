@@ -8,7 +8,7 @@ setup(
     # Module name
     name='proxy-www',
     # Module version
-    version='1.0.1',
+    version='1.1.0',
     # License - MIT!
     license='MIT',
     # Author (Github username)

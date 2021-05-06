@@ -7,11 +7,11 @@ Port of proxy-www in npm ()
 :license: MIT, see LICENSE for more details.
 """
 
-__title__ = 'proxy_www'
+__title__ = 'proxy-www'
 __author__ = 'Lapis0875'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2020 Lapis0875'
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 
 from .proxy import www, http, https
 from .method import HTTPMethod,\
