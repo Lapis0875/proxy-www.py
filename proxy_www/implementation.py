@@ -80,12 +80,10 @@ class ClassProxyMeta(type):
         __repr__.__name__ = '{}.__repr__'.format(clsname)
 
         def __getitem__(self, method: typing.Union[str, HTTPMethod]):
-            if isinstance(method, str):
-                if type(method) is str:
-                    try:
-                        self.method = HTTPMethod[method].name
-                    except KeyError:
-                        raise ValueError('HTTP Method must be one of valid HTTP methods, not {}'.format(method))
+            if type(method) is str:
+                if method not in HTTPMethod.__members__:
+                    raise ValueError('HTTP Method must be one of valid HTTP methods, not {}'.format(method))
+                self.method = HTTPMethod[method].name
             elif type(method) is HTTPMethod:
                 self.method = method.name
             else:
