@@ -3,22 +3,19 @@ from __future__ import annotations
 import aiohttp
 import asyncio
 import enum
-import logging
 import sys
 import typing
 from functools import partial
 
+from proxy_www.utils import get_logger, wrap_class_method
 
-logger = logging.getLogger('proxy_www')
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(
-    logging.Formatter(
-        style='{',
-        fmt='[{asctime}] [{levelname}] {name}: {message}'
-    )
-)
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
+logger = get_logger('proxy_www')
+
+
+"""
+DEPRECATED OLD CODES.
+PRESERVED TO CHECK PREVIOUS IMPLEMENTATION LATER.
+"""
 
 
 class HTTPMethod(enum.Enum):
@@ -38,47 +35,68 @@ for http_mtd in HTTPMethod:
 
 
 class ClassProxyMeta(type):
-    def __new__(cls, clsname: str, bases: tuple, attrs: dict):
+    def __new__(mcs, clsname: str, bases: tuple, attrs: dict):
         logger.debug('Creating new ClassProxy class with parameters : name={}, bases={}, attrs={}'.format(clsname, bases, attrs))
 
-        def __init__(self, url: str):
-            self.url: str = url
+        # Preserve original __init__ function.
+        if '__init__' in attrs:
+            logger.debug(f'Found pre-defined __init__ method in class {clsname}')
+            original_init = attrs['__init__']
 
-        __init__.__name__ = '{}.__init__'.format(clsname)
+            @wrap_class_method(clsname)
+            def __init__(self, url: str):
+                self.url = url
+                self.args = []
+                self.kwargs = {}
+                # call original __init__
+                original_init(self, url)
+        else:
+            @wrap_class_method(clsname)
+            def __init__(self, url: str):
+                self.url = url
+                self.args = []
+                self.kwargs = {}
 
+        @wrap_class_method(clsname)
         def __getattr__(self, item):
+            if item in self.__dict__:
+                print(f'{item} is in self.__dict__!')
+                return self.__dict__[item]
             if item.startswith('__'):
+                print(super(ClassProxyMeta, self).__getattr__)
                 return super(ClassProxyMeta, self).__getattr__(item)
             logger.debug('{} : getattr > item = {}'.format(self.url, item))
             self.url += '.{}'.format(item)
             return self
 
-        __getattr__.__name__ = '{}.__getattr__'.format(clsname)
-
+        @wrap_class_method(clsname)
         def __truediv__(self, other):
             if isinstance(other, str):
                 self.url += '/{}'.format(other)
                 print(self.url)
                 return self
             else:
-                return super().__floordiv__(other)
+                return super().__truediv__(other)
 
-        __truediv__.__name__ = '{}.__truediv__'.format(clsname)
+        @wrap_class_method(clsname)
+        def __call__(self, *args, **kwargs):
+            self.args = args
+            self.kwargs = kwargs
+            return self
 
+        @wrap_class_method(clsname)
         def __await__(self) -> aiohttp.ClientResponse:
             session = aiohttp.ClientSession()
-            resp = yield from session._request(self.method, self.url).__await__()
+            resp = yield from session._request(self.method, self.url, *self.args, **self.kwargs).__await__()
             yield from session.close().__await__()
             logger.debug('{} -> {} : session closed? > {}'.format(self.url, self.method, session.closed))
             return resp
 
-        __await__.__name__ = '{}.__await__'.format(clsname)
-
+        @wrap_class_method(clsname)
         def __repr__(self) -> str:
             return 'ClassProxy(class={}, url={}, method={})'.format(self.__class__.__name__, self.url, self.method)
 
-        __repr__.__name__ = '{}.__repr__'.format(clsname)
-
+        @wrap_class_method(clsname)
         def __getitem__(self, method: typing.Union[str, HTTPMethod]):
             if type(method) is str:
                 method = method.upper()
@@ -91,8 +109,6 @@ class ClassProxyMeta(type):
                 raise TypeError('HTTP Method must be HTTPMethod or string, not {}'.format(type(method)))
 
             return self
-
-        __getitem__.__name__ = '{}.__getitem__'.format(clsname)
 
         attrs.update({
             '__await__': __await__,
@@ -107,13 +123,18 @@ class ClassProxyMeta(type):
         logger.debug('Updated attrs for ClassProxy {}:'.format(clsname))
         logger.debug(attrs)
         logger.debug(super().__new__)
-        return super(ClassProxyMeta, cls).__new__(cls, clsname, bases, attrs)
+        cls = super(ClassProxyMeta, mcs).__new__(mcs, clsname, bases, attrs)
+        return cls
 
     def __getattr__(self, item):
-        if item == '_asyncio_future_blocking':
+        logger.debug(f'{self}.__getattr__ > {item} in {self}.__dict__ == {item in self.__dict__}')
+        if item in self.__dict__:
             return super().__getattr__(item)
-        logger.debug('Creating www proxy object for domain {}'.format(item))
-        url = 'http://www.{}'.format(item) if self.__name__ == 'www' else '{}://{}'.format(self.__name__, item)
+        logger.debug('Creating {} proxy object for domain {}'.format(self.__name__, item))
+        if self.__name__ == 'www':
+            url = '{}://www.{}'.format('https' if self.https_default else 'http', item)
+        else:
+            url = '{}://{}'.format(self.__name__, item)
         instance = self(url)
         return instance
 
@@ -123,6 +144,7 @@ class ClassProxyMeta(type):
 
 class www(metaclass=ClassProxyMeta):
     url: str
+    https_default: bool = False
 
     @property
     def is_secure(self) -> bool:
