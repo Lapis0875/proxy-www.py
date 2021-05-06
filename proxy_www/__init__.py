@@ -14,7 +14,11 @@ __copyright__ = 'Copyright 2020 Lapis0875'
 __version__ = '1.0.0'
 
 from .implementation import www, http, https
+from .methods import GET, HEAD, POST, PUT,\
+                     DELETE, CONNECT, OPTIONS, TRACE, PATCH
 
-__all__ = ('www', 'http', 'https')
-
-
+__all__ = (
+    'www', 'http', 'https',
+    'GET', 'HEAD', 'POST', 'PUT',
+    'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH',
+)

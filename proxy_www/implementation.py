@@ -50,15 +50,15 @@ class ClassProxyMeta(type):
 
         def __await__(self) -> aiohttp.ClientResponse:
             session = aiohttp.ClientSession()
-            resp = yield from session._request('GET', self.url).__await__()
+            resp = yield from session._request(self.method, self.url).__await__()
             yield from session.close().__await__()
-            logger.debug('{} -> GET : session closed? > {}'.format(self.url, session.closed))
+            logger.debug('{} -> {} : session closed? > {}'.format(self.url, self.method, session.closed))
             return resp
 
         __await__.__name__ = '{}.__await__'.format(clsname)
 
         def __repr__(self) -> str:
-            return 'ClassProxy(class={}, url={})'.format(self.__class__.__name__, self.url)
+            return 'ClassProxy(class={}, url={}, method={})'.format(self.__class__.__name__, self.url, self.method)
 
         __repr__.__name__ = '{}.__repr__'.format(clsname)
 
@@ -67,7 +67,8 @@ class ClassProxyMeta(type):
             '__truediv__': __truediv__,
             '__getattr__': __getattr__,
             '__init__': __init__,
-            '__repr__': __repr__
+            '__repr__': __repr__,
+            'method': 'GET'
         })
 
         logger.debug('Updated attrs for ClassProxy {}:'.format(clsname))
@@ -109,7 +110,7 @@ class www(metaclass=ClassProxyMeta):
         raise NotImplementedError('Currently, sync request using ClassProxy.__call__ is WIP. Sorry for inconvenience :(')
 
     def __sync_req__(self):
-        task_name: str = 'www.Future({} -> GET)'.format(self.url)
+        task_name: str = 'www.Future({} -> {})'.format(self.url, self.method)
         task: asyncio.Task = asyncio.create_task(self.__await__(), name=task_name)
         task.add_done_callback(partial(print, task_name))
         # result = next(future.__await__())
