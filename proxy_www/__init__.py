@@ -13,12 +13,13 @@ __license__ = 'MIT'
 __copyright__ = 'Copyright 2020 Lapis0875'
 __version__ = '1.0.0'
 
-from .implementation import www, http, https
-from .methods import GET, HEAD, POST, PUT,\
-                     DELETE, CONNECT, OPTIONS, TRACE, PATCH
+from .implementation import www, http, https, HTTPMethod,\
+    GET, HEAD, POST, PUT,\
+    DELETE, CONNECT, OPTIONS, TRACE, PATCH
 
 __all__ = (
     'www', 'http', 'https',
+    'HTTPMethod',
     'GET', 'HEAD', 'POST', 'PUT',
     'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH',
 )

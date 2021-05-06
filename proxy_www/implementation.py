@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import asyncio
-import logging
-from functools import partial
-from sys import stdout
-
 import aiohttp
+import asyncio
+import enum
+import logging
+import sys
+import typing
+from functools import partial
 
 
 logger = logging.getLogger('proxy_www')
-handler = logging.StreamHandler(stdout)
+handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
     logging.Formatter(
         style='{',
@@ -18,6 +19,22 @@ handler.setFormatter(
 )
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
+
+
+class HTTPMethod(enum.Enum):
+    GET = enum.auto()
+    HEAD = enum.auto()
+    POST = enum.auto()
+    PUT = enum.auto()
+    DELETE = enum.auto()
+    CONNECT = enum.auto()
+    OPTIONS = enum.auto()
+    TRACE = enum.auto()
+    PATCH = enum.auto()
+
+
+for http_mtd in HTTPMethod:
+    setattr(sys.modules[__name__], http_mtd.name, http_mtd)
 
 
 class ClassProxyMeta(type):
@@ -62,12 +79,29 @@ class ClassProxyMeta(type):
 
         __repr__.__name__ = '{}.__repr__'.format(clsname)
 
+        def __getitem__(self, method: typing.Union[str, HTTPMethod]):
+            if isinstance(method, str):
+                if type(method) is str:
+                    try:
+                        self.method = HTTPMethod[method].name
+                    except KeyError:
+                        raise ValueError('HTTP Method must be one of valid HTTP methods, not {}'.format(method))
+            elif type(method) is HTTPMethod:
+                self.method = method.name
+            else:
+                raise TypeError('HTTP Method must be HTTPMethod or string, not {}'.format(type(method)))
+
+            return self
+
+        __getitem__.__name__ = '{}.__getitem__'.format(clsname)
+
         attrs.update({
             '__await__': __await__,
             '__truediv__': __truediv__,
             '__getattr__': __getattr__,
             '__init__': __init__,
             '__repr__': __repr__,
+            '__getitem__': __getitem__,
             'method': 'GET'
         })
 
