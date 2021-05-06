@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import asyncio
-import logging
-from functools import partial
-from sys import stdout
-
 import aiohttp
+import asyncio
+import enum
+import logging
+import sys
+import typing
+from functools import partial
 
 
 logger = logging.getLogger('proxy_www')
-handler = logging.StreamHandler(stdout)
+handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
     logging.Formatter(
         style='{',
@@ -18,6 +19,22 @@ handler.setFormatter(
 )
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
+
+
+class HTTPMethod(enum.Enum):
+    GET = enum.auto()
+    HEAD = enum.auto()
+    POST = enum.auto()
+    PUT = enum.auto()
+    DELETE = enum.auto()
+    CONNECT = enum.auto()
+    OPTIONS = enum.auto()
+    TRACE = enum.auto()
+    PATCH = enum.auto()
+
+
+for http_mtd in HTTPMethod:
+    setattr(sys.modules[__name__], http_mtd.name, http_mtd)
 
 
 class ClassProxyMeta(type):
@@ -50,24 +67,41 @@ class ClassProxyMeta(type):
 
         def __await__(self) -> aiohttp.ClientResponse:
             session = aiohttp.ClientSession()
-            resp = yield from session._request('GET', self.url).__await__()
+            resp = yield from session._request(self.method, self.url).__await__()
             yield from session.close().__await__()
-            logger.debug('{} -> GET : session closed? > {}'.format(self.url, session.closed))
+            logger.debug('{} -> {} : session closed? > {}'.format(self.url, self.method, session.closed))
             return resp
 
         __await__.__name__ = '{}.__await__'.format(clsname)
 
         def __repr__(self) -> str:
-            return 'ClassProxy(class={}, url={})'.format(self.__class__.__name__, self.url)
+            return 'ClassProxy(class={}, url={}, method={})'.format(self.__class__.__name__, self.url, self.method)
 
         __repr__.__name__ = '{}.__repr__'.format(clsname)
+
+        def __getitem__(self, method: typing.Union[str, HTTPMethod]):
+            if type(method) is str:
+                method = method.upper()
+                if method not in HTTPMethod.__members__:
+                    raise ValueError('HTTP Method must be one of valid HTTP methods, not {}'.format(method))
+                self.method = method
+            elif type(method) is HTTPMethod:
+                self.method = method.name
+            else:
+                raise TypeError('HTTP Method must be HTTPMethod or string, not {}'.format(type(method)))
+
+            return self
+
+        __getitem__.__name__ = '{}.__getitem__'.format(clsname)
 
         attrs.update({
             '__await__': __await__,
             '__truediv__': __truediv__,
             '__getattr__': __getattr__,
             '__init__': __init__,
-            '__repr__': __repr__
+            '__repr__': __repr__,
+            '__getitem__': __getitem__,
+            'method': 'GET'
         })
 
         logger.debug('Updated attrs for ClassProxy {}:'.format(clsname))
@@ -109,7 +143,7 @@ class www(metaclass=ClassProxyMeta):
         raise NotImplementedError('Currently, sync request using ClassProxy.__call__ is WIP. Sorry for inconvenience :(')
 
     def __sync_req__(self):
-        task_name: str = 'www.Future({} -> GET)'.format(self.url)
+        task_name: str = 'www.Future({} -> {})'.format(self.url, self.method)
         task: asyncio.Task = asyncio.create_task(self.__await__(), name=task_name)
         task.add_done_callback(partial(print, task_name))
         # result = next(future.__await__())
